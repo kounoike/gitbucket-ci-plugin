@@ -1,13 +1,20 @@
 package io.github.gitbucket.ci.service
 
-import java.io.File
+import java.io.{ByteArrayOutputStream, File}
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue}
+
 import gitbucket.core.util.Directory.getRepositoryDir
 import gitbucket.core.util.SyntaxSugars.using
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.eclipse.jgit.api.Git
+import org.fusesource.jansi.HtmlAnsiOutputStream
+import org.scalatra.atmosphere.{AtmosphereClient, JsonMessage}
+import org.json4s._
+import org.json4s.JsonDSL.WithDouble._
+import org.json4s.jackson.JsonMethods._
+import org.json4s.jackson.Serialization
 
 import scala.sys.process._
 
@@ -40,6 +47,12 @@ object BuildManager {
   private def runBuild(job: BuildJob): Unit = {
     val startTime = System.currentTimeMillis
     runningJob.set(Some(job.copy(startTime = Some(startTime))))
+
+    import scala.concurrent.ExecutionContext.Implicits.global
+    implicit val formats = Serialization.formats(NoTypeHints)
+    val startEvent = ("event" -> "start") ~ ("startTime" -> startTime)
+    println("Sending startEvent:" + compact(render(startEvent)))
+    AtmosphereClient.broadcast("/SimpleCI-ws/build/*", JsonMessage(render(startEvent)))
 
     val sb = new StringBuilder()
 
@@ -74,6 +87,10 @@ object BuildManager {
     }
 
     val endTime = System.currentTimeMillis
+
+    val endEvent = ("event" -> "start") ~ ("startTime" -> endTime)
+    println("Sending endEvent:" + compact(render(endEvent)))
+    AtmosphereClient.broadcast("/SimpleCI-ws/build/*", JsonMessage(render(endEvent)))
 
     val result = BuildResult(job.userName, job.repositoryName, job.sha, job.buildNumber, exitValue == 0, startTime, endTime, sb.toString)
 
@@ -137,19 +154,36 @@ trait SimpleCIService {
 }
 
 class BuildProcessLogger(sb: StringBuilder) extends ProcessLogger {
+  import scala.concurrent.ExecutionContext.Implicits.global
+  implicit val formats = Serialization.formats(NoTypeHints)
+
+  @throws[java.io.IOException]
+  private def colorize(text: String) = {
+    using(new ByteArrayOutputStream()){ os =>
+      using(new HtmlAnsiOutputStream(os)){ hos =>
+        hos.write(text.getBytes("UTF-8"))
+      }
+      new String(os.toByteArray, "UTF-8")
+    }
+  }
 
   override def err(s: => String): Unit = {
     sb.append(s + "\n")
     println(s) // TODO Debug
+
+    val logEvent = ("event" -> "log") ~ ("log" -> colorize(s))
+    AtmosphereClient.broadcast("/SimpleCI-ws/build/*", JsonMessage(render(logEvent)))
   }
 
   override def out(s: => String): Unit = {
     sb.append(s + "\n")
     println(s) // TODO Debug
+
+    val logEvent = ("event" -> "log") ~ ("log" -> colorize(s))
+    AtmosphereClient.broadcast("/SimpleCI-ws/build/*", JsonMessage(render(logEvent)))
   }
 
   override def buffer[T](f: => T): T = ???
-
 }
 
 case class BuildSetting(userName: String, repositoryName: String, script: String)

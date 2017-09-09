@@ -5,6 +5,7 @@
 @gitbucket.core.html.main("Build", Some(repository)) {
   @gitbucket.core.html.menu("build", repository) {
     <script src="@context.path/plugin-assets/ci/vue.js"></script>
+    <script src="@context.path/plugin-assets/ci/atmosphere.js"></script>
     <div id="app">
       @if(isEditable){
         <div class="head" style="height: 24px;">
@@ -79,6 +80,7 @@
       }
     </table>
     *@
+    <div id="logMessageBox" style="height: 300px; overflow-y: scroll;"></div>
   }
 }
 <!-- Modal -->
@@ -155,5 +157,32 @@ $(function(){
       updateStatus(false);
     });
   });
+
+  var socket = atmosphere;
+  var request = {
+    url: "@context.path/SimpleCI-ws/build/",
+    contentType: "application/json",
+    logLevel: "debug",
+    transport: "websocket",
+    trackMessageLength: true,
+    reconnectInterval: 5000
+   };
+   request.onOpen = function(response) {
+    console.log("connect");
+   };
+   request.onMessage = function(response) {
+    console.log("message");
+    console.log(response);
+    if (!response.responseBody.startsWith("X")) {
+      var json = jQuery.parseJSON(response.responseBody);
+      if(json.event == "log"){
+        var target =$("#logMessageBox");
+        target.append("<p>" + json.log + "</p>");
+        target.animate({scrollTop: target[0].scrollHeight}, 'fast');
+      }
+    }
+   };
+   var subSocket = socket.subscribe(request);
+
 });
 </script>
