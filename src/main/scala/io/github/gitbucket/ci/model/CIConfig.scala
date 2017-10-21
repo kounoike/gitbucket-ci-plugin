@@ -13,7 +13,8 @@ trait CIConfigComponent { self: gitbucket.core.model.Profile =>
     val notification = column[Boolean]("NOTIFICATION")
     val skipWords = column[String]("SKIP_WORDS")
     val runWords = column[String]("RUN_WORDS")
-    def * = (userName, repositoryName, buildScript, notification, skipWords.?, runWords.?) <> (CIConfig.tupled, CIConfig.unapply)
+    val artifactsPattern = column[String]("ARTIFACTS_PATTERN")
+    def * = (userName, repositoryName, buildScript, notification, skipWords.?, runWords.?, artifactsPattern.?) <> (CIConfig.tupled, CIConfig.unapply)
   }
 }
 
@@ -23,7 +24,8 @@ case class CIConfig(
   buildScript: String,
   notification: Boolean,
   skipWords: Option[String],
-  runWords: Option[String]
+  runWords: Option[String],
+  artifactsPattern: Option[String]
 ){
   lazy val skipWordsSeq: Seq[String] = skipWords.map(_.split(",").map(_.trim).toSeq).getOrElse(Nil)
   lazy val runWordsSeq: Seq[String] = runWords.map(_.split(",").map(_.trim).toSeq).getOrElse(Nil)

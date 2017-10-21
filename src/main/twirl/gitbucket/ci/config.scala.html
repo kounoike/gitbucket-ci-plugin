@@ -38,6 +38,10 @@
                 <label for="runWords">Run words</label> (comma-separated words)
                 <input type="text" name="runWords" id="runWords" class="form-control" value="@config.map(_.runWords).getOrElse("ok to test, test this please")">
               </fieldset>
+              <fieldset class="form-group">
+                <label for="artifactsPattern">Artifacts pattern</label> <code>{**.exe,**.dll}</code> or <code>output/**</code>
+                <input type="text" name="artifactsPattern" id="artifactsPattern" class="form-control" value="@config.map(_.artifactsPattern).getOrElse("")">
+              </fieldset>
             </div>
           </div>
         </div>

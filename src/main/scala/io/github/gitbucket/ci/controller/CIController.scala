@@ -45,7 +45,8 @@ object CIController {
     buildScript: Option[String],
     notification: Boolean,
     skipWords: Option[String],
-    runWords: Option[String]
+    runWords: Option[String],
+    artifactsPattern: Option[String]
   )
 
 }
@@ -60,7 +61,8 @@ class CIController extends ControllerBase
     "buildScript" -> trim(label("Build script", optional(text()))),
     "notification" -> trim(label("Notification", boolean())),
     "skipWords" -> trim(label("Skip words", optional(text()))),
-    "runWords" -> trim(label("Run words", optional(text())))
+    "runWords" -> trim(label("Run words", optional(text()))),
+    "artifactsPattern" -> trim(label("Artifacts pattern", optional(text())))
   )(BuildConfigForm.apply)
 
   get("/:owner/:repository/build")(referrersOnly { repository =>
@@ -290,7 +292,8 @@ class CIController extends ControllerBase
           form.buildScript.getOrElse(""),
           form.notification,
           form.skipWords,
-          form.runWords
+          form.runWords,
+          form.artifactsPattern
         )
       ))
     } else {

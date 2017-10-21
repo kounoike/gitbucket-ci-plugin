@@ -1,6 +1,7 @@
 package io.github.gitbucket.ci.manager
 
 import java.io.File
+import java.nio.file.{FileSystems, Files}
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.atomic.AtomicReference
 
@@ -23,6 +24,7 @@ import org.slf4j.LoggerFactory
 
 import scala.sys.process.{Process, ProcessLogger}
 import scala.util.control.ControlThrowable
+import scala.collection.JavaConverters._
 
 
 class BuildJobThread(queue: LinkedBlockingQueue[BuildJob]) extends Thread
@@ -78,9 +80,9 @@ class BuildJobThread(queue: LinkedBlockingQueue[BuildJob]) extends Thread
     }
 
     try {
+      val buildDir = CIUtils.getBuildDir(job.userName, job.repositoryName, job.buildNumber)
+      val dir = new File(buildDir, "workspace")
       val exitValue = try {
-        val buildDir = CIUtils.getBuildDir(job.userName, job.repositoryName, job.buildNumber)
-        val dir = new File(buildDir, "workspace")
         if (dir.exists()) {
           FileUtils.deleteDirectory(dir)
         }
@@ -197,6 +199,34 @@ class BuildJobThread(queue: LinkedBlockingQueue[BuildJob]) extends Thread
           }
         }
       }
+
+      if(exitValue == 0){
+        job.config.artifactsPattern.foreach{ pattern =>
+          val matcherPattern = pattern match {
+            case s if(s.startsWith("glob:") || s.startsWith("regex:")) =>
+              s
+            case s =>
+              s"glob:${s}"
+          }
+          val matcher = FileSystems.getDefault.getPathMatcher(matcherPattern)
+          val gitMatcher = FileSystems.getDefault.getPathMatcher("glob:.git/**")
+          val artifactsPath = new File(buildDir, "artifacts").toPath
+          val workspacePath = dir.toPath
+
+          Files.walk(workspacePath).iterator().asScala.filter(_.toFile.isFile).map(workspacePath.relativize)
+            .filterNot(gitMatcher.matches)
+            .filter(matcher.matches).foreach { path =>
+            val workspaceFile = workspacePath.resolve(path)
+            val artifactsFile = artifactsPath.resolve(path)
+            if(!artifactsFile.getParent.toFile.exists()){
+              Files.createDirectories(artifactsFile.getParent)
+            }
+            Files.copy(workspaceFile, artifactsFile)
+          }
+        }
+      }
+
+      // TODO: Delete workspace?
 
       logger.info("Build number: " + job.buildNumber)
       logger.info("Total: " + (endTime.getTime - startTime.getTime) + " msec")

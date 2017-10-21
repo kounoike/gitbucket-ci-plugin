@@ -23,7 +23,9 @@ class Plugin extends gitbucket.core.plugin.Plugin {
       new LiquibaseMigration("update/gitbucket-ci_1.0.0.xml")),
     new Version("1.0.1"),
     new Version("1.1.0",
-      new LiquibaseMigration("update/gitbucket-ci_1.1.0.xml"))
+      new LiquibaseMigration("update/gitbucket-ci_1.1.0.xml")),
+    new Version("1.2.0",
+      new LiquibaseMigration("update/gitbucket-ci_1.2.0.xml"))
   )
 
   override val assetsMappings = Seq("/ci" -> "/gitbucket/ci/assets")

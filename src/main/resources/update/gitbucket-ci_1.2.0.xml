@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<changeSet>
+    <addColumn tableName="CI_CONFIG">
+        <column name="ARTIFACTS_PATTERN" type="varchar(2000)" nullable="true"/>
+    </addColumn>
+</changeSet>
